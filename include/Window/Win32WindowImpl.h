@@ -43,6 +43,7 @@ public:
 		}
 
 		Create(title);
+		SetFont("Consolas");
 	}
 
 	virtual ~Win32WindowImpl() {
@@ -68,6 +69,19 @@ public:
 			(int)rect.pos.x, (int)rect.pos.y,
 			(int)(rect.pos.x + rect.size.w), (int)(rect.pos.y + rect.size.h),
 			NULL);
+	}
+
+	virtual void SetFont(const char* const font) {
+		_hfont = CreateFontA(
+			14, 0, 0, 0,
+			FW_DONTCARE,	// weight
+			FALSE,			// italic
+			FALSE,			// underline
+			FALSE,			// strike
+			DEFAULT_CHARSET,// charset
+			OUT_OUTLINE_PRECIS, CLIP_DEFAULT_PRECIS,
+			CLEARTYPE_QUALITY, // antialiasing
+			VARIABLE_PITCH, font);
 	}
 
 	virtual void SetColor(const RGBA& rgba) {
@@ -123,6 +137,7 @@ public:
 		HDC hdc = GetDC(_hwnd);
 		SetTextColor(hdc, _fg);
 		SetBkColor(hdc, _bg);
+		SelectObject(hdc, _hfont);
 
 		DrawTextA(hdc, (char*)&c, 1, &rc, DT_NOPREFIX);
 
@@ -139,6 +154,7 @@ public:
 		HDC hdc = GetDC(_hwnd);
 		SetTextColor(hdc, _fg);
 		SetBkColor(hdc, _bg);
+		SelectObject(hdc, _hfont);
 
 		DrawTextA(hdc, text, strlen(text), &rc, DT_NOPREFIX);
 
@@ -168,6 +184,7 @@ public:
 
 		HDC hdc = GetDC(_hwnd);
 		RECT rc = { 0 };
+		SelectObject(hdc, _hfont);
 		DrawTextA(hdc, (char*)&c, 1, &rc, DT_CALCRECT);
 		ReleaseDC(_hwnd, hdc);
 
@@ -194,6 +211,7 @@ protected:
 	virtual void Destroy() {
 		if (_hwnd) {
 			_close = true;
+			DeleteObject(_hfont);
 			DestroyWindow(_hwnd);
 			_hwnd = NULL;
 		}
@@ -239,6 +257,7 @@ protected:
 
 	bool _close;
 	HWND _hwnd;
+	HFONT _hfont;
 	COLORREF _fg, _bg;
 	HBRUSH _fgb, _bgb;
 };

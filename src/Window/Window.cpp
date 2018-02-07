@@ -33,6 +33,10 @@ void Window::GetRect(Rect& rect) {
 	rect = _wnd_rect;
 }
 
+void Window::GetFont(const char* font) {
+	font = _font;
+}
+
 void Window::GetColor(RGBA& rgba) {
 	rgba = _fg;
 }
@@ -44,6 +48,15 @@ void Window::GetClearColor(RGBA& rgba) {
 void Window::SetRect(const Rect& rect) {
 	_wnd_rect = rect;
 	_impl->SetRect(_wnd_rect);
+}
+
+void Window::SetFont(const char* const font) {
+	if (_font) delete _font;
+	int len = strlen(font);
+	_font = new char[len+1];
+	strcpy(_font, font);
+	_font[len] = '\0';
+	_impl->SetFont(font);
 }
 
 void Window::SetColor(const RGBA& rgba) {

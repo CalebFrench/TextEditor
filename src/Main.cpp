@@ -1,16 +1,17 @@
 #include <cstdlib>
 #include <Window\Window.h>
-#include <Glyph\Glyph.h>
+#include <Glyph\Glyphs.h>
 
 
 Glyph* MakeDoc(Window& window, std::vector<std::string> strs) {
-	Row* doc = new Row();
+	BoundingGlyph* doc = new BoundingGlyph();
+	doc->SetBoundingBox({ 4, 4, 10000, 10000 });
 
-	Col* col = new Col();
+	ColGlyph* col = new ColGlyph();
 	for (auto str : strs) {
-		Row* row = new Row();
+		RowGlyph* row = new RowGlyph();
 		for (auto c : str) {
-			row->Add(new CharGlyph(c, window));
+			row->Add(new CharGlyph(c, RGBA{ 0.9f, 0.9f, 0.9f, 1.0f }, window));
 		}
 		col->Add((Glyph*)row);
 	}
@@ -43,13 +44,12 @@ int main(int argc, char* argv[]) {
 	window.SetClearColor({ 0.1f, 0.1f, 0.1f, 1.0f });
 
 	std::vector<std::string> lines = ReadLines("src/Window/Window.cpp");
-	Glyph* glyph = MakeDoc(window, lines);
+	Glyph* doc = MakeDoc(window, lines);
 
-	RGBA glyph_color = { 0.8f, 0.8f, 0.8f, 1.0f };
 	do {
 		window.Clear();
 
-		glyph->Draw(window, glyph_color);
+		doc->Draw(window);
 		
 		window.Present();
 	} while (window.Process());

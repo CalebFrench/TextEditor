@@ -20,6 +20,7 @@ public:
 	virtual void Present() = 0;
 
 	virtual void SetRect(const Rect& rect) = 0;
+	virtual void SetFont(const char* const font) = 0;
 	virtual void SetColor(const RGBA& rgba) = 0;
 	virtual void SetClearColor(const RGBA& rgba) = 0;
 
@@ -43,9 +44,11 @@ public:
 	void Present();
 
 	void GetRect(Rect& rect);
+	void GetFont(const char* font);
 	void GetColor(RGBA& rgba);
 	void GetClearColor(RGBA& rgba);
 	void SetRect(const Rect& rect);
+	void SetFont(const char* const font);
 	void SetColor(const RGBA& rgba);
 	void SetClearColor(const RGBA& rgba) ;
 
@@ -61,5 +64,6 @@ public:
 private:
 	WindowImpl* _impl;
 	Rect _wnd_rect;
+	char* _font;
 	RGBA _fg, _bg;
 };
