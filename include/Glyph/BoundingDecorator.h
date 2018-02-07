@@ -2,7 +2,7 @@
 #include "Glyph.h"
 
 
-class BoundingGlyph : public DecoratorGlyph {
+class BoundingDecorator : public DecoratorGlyph {
 public:
 	virtual void SetBoundingBox(BoundingBox box);
 };

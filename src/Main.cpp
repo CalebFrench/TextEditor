@@ -4,8 +4,11 @@
 
 
 Glyph* MakeDoc(Window& window, std::vector<std::string> strs) {
-	BoundingGlyph* doc = new BoundingGlyph();
-	doc->SetBoundingBox({ 4, 4, 10000, 10000 });
+	BorderDecorator* doc = new BorderDecorator();
+	doc->SetBoundingBox({ 4, 4, 400, 400 });
+
+	BoundingDecorator* textArea = new BoundingDecorator();
+	textArea->SetBoundingBox({ 4, 4, 400, 400 });
 
 	ColGlyph* col = new ColGlyph();
 	for (auto str : strs) {
@@ -13,9 +16,10 @@ Glyph* MakeDoc(Window& window, std::vector<std::string> strs) {
 		for (auto c : str) {
 			row->Add(new CharGlyph(c, RGBA{ 0.9f, 0.9f, 0.9f, 1.0f }, window));
 		}
-		col->Add((Glyph*)row);
+		col->Add(row);
 	}
-	doc->Add((Glyph*)col);
+	textArea->Add(col);
+	doc->Add(textArea);
 
 	return (Glyph*)doc;
 }
