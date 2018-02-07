@@ -1,4 +1,4 @@
-#include "Glyph.h"
+#include <Glyph\Glyph.h>
 
 
 Glyph::Glyph(Pos pos, Box box, Glyph* parent)

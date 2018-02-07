@@ -1,5 +1,5 @@
 #pragma once
-#include "Window.h"
+#include <Window\Window.h>
 #include <vector>
 
 struct Pos {
@@ -50,7 +50,6 @@ public:
 
 	virtual void Draw(Window& window, RGBA& color);
 	virtual void Add(Glyph* glyph);
-	//virtual void Remove();
 
 	virtual Box GetBox();
 	virtual void SetBox(Box box);
@@ -65,7 +64,6 @@ public:
 
 	virtual void Draw(Window& window, RGBA& color);
 	void Add(Glyph* glyph);
-	//virtual void Remove();
 
 	virtual Box GetBox();
 	virtual void SetBox(Box box);

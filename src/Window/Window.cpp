@@ -1,5 +1,5 @@
-#include "Window.h"
-#include "Win32WindowImpl.h"
+#include <Window\Window.h>
+#include <Window\Win32WindowImpl.h>
 
 
 Window::Window(const char* const title, float width, float height) {

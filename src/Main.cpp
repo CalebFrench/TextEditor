@@ -1,6 +1,7 @@
 #include <cstdlib>
-#include "Window.h"
-#include "Glyph.h"
+#include <Window\Window.h>
+#include <Glyph\Glyph.h>
+
 
 Glyph* MakeDoc(Window& window, std::vector<std::string> strs) {
 	Row* doc = new Row();
@@ -18,13 +19,13 @@ Glyph* MakeDoc(Window& window, std::vector<std::string> strs) {
 	return (Glyph*)doc;
 }
 
-int main(int argc, char* argv[]) {
-	Window window("Lexi");
-	window.SetColor({ 0.9f, 0.9f, 0.9f, 1.0f });
-	window.SetClearColor({ 0.1f, 0.1f, 0.1f, 1.0f });
+std::vector<std::string> ReadLines(const char* const file_name) {
+	std::vector<std::string> lines;
+	FILE* file = fopen(file_name, "r");
+	if (!file)
+		return lines;
 
-	std::vector<std::string> lines(1);
-	FILE* file = fopen("Window.cpp", "r");
+	lines.emplace_back();
 	while (!feof(file)) {
 		int c = fgetc(file);
 		lines.back().push_back(c);
@@ -33,9 +34,18 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
-	RGBA glyph_color = { 0.8f, 0.8f, 0.8f, 1.0f };
+	return lines;
+}
+
+int main(int argc, char* argv[]) {
+	Window window("Lexi");
+	window.SetColor({ 0.9f, 0.9f, 0.9f, 1.0f });
+	window.SetClearColor({ 0.1f, 0.1f, 0.1f, 1.0f });
+
+	std::vector<std::string> lines = ReadLines("src/Window/Window.cpp");
 	Glyph* glyph = MakeDoc(window, lines);
 
+	RGBA glyph_color = { 0.8f, 0.8f, 0.8f, 1.0f };
 	do {
 		window.Clear();
 
