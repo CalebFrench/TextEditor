@@ -34,10 +34,11 @@ protected:
 
 class DecoratorGlyph : public Glyph {
 public:
-	virtual Glyph* GetChild();
-
-	virtual void Add(Glyph* glyph);
+	virtual void Insert(Glyph* glyph, size_t pos = -1);
+	virtual void Remove(size_t pos = -1);
 	virtual void Draw(Window& window);
+
+	virtual Glyph* GetChild(size_t pos = -1);
 
 protected:
 	Glyph* child_;
@@ -46,8 +47,13 @@ protected:
 class ContainerGlyph : public Glyph {
 public:
 	virtual void Update() = 0;
-	virtual void Add(Glyph* glyph);
+	virtual void Insert(Glyph* glyph, size_t pos = -1);
+	virtual void Remove(size_t pos = -1);
 	virtual void Draw(Window& window);
+
+	virtual Glyph* GetChild(size_t pos = -1);
+	virtual std::vector<Glyph*> GetChildren();
+
 
 protected:
 	std::vector<Glyph*> children_;

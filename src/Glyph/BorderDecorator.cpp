@@ -9,5 +9,5 @@ void BorderDecorator::Draw(Window& window) {
 		box.l, box.t,
 		box.r - box.l,
 		box.b - box.t
-	}, 1.0f);
+	}, 2.0f);
 }

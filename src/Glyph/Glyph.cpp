@@ -54,13 +54,14 @@ void Glyph::SetParent(Glyph* parent) {
 	parent_ = parent;
 }
 
-Glyph* DecoratorGlyph::GetChild() {
-	return child_;
-}
-
-void DecoratorGlyph::Add(Glyph* child) {
+void DecoratorGlyph::Insert(Glyph* child, size_t pos) {
 	child->SetParent(this);
 	child_ = child;
+}
+
+void DecoratorGlyph::Remove(size_t pos) {
+	delete child_;
+	child_ = nullptr;
 }
 
 void DecoratorGlyph::Draw(Window& window) {
@@ -70,6 +71,10 @@ void DecoratorGlyph::Draw(Window& window) {
 			&& (box.b < 0 || cbox.t <= box.b)) {
 		child_->Draw(window);
 	}
+}
+
+Glyph* DecoratorGlyph::GetChild(size_t pos) {
+	return child_;
 }
 
 void ContainerGlyph::Draw(Window& window) {
@@ -83,8 +88,36 @@ void ContainerGlyph::Draw(Window& window) {
 	}
 }
 
-void ContainerGlyph::Add(Glyph* glyph) {
-	glyph->SetParent(this);
-	children_.push_back(glyph);
+void ContainerGlyph::Insert(Glyph* child, size_t pos) {
+	child->SetParent(this);
+
+	auto itr = children_.begin();
+	for (size_t i = 0; itr != children_.end() && i < pos; ++i)
+		++itr;
+
+	children_.insert(itr, child);
 	Update();
+}
+
+void ContainerGlyph::Remove(size_t pos) {
+	auto itr = children_.begin();
+	for (size_t i = 0; itr != children_.end() && i < pos; ++i)
+		++itr;
+
+	delete *itr;
+	children_.erase(itr);
+	Update();
+}
+
+Glyph* ContainerGlyph::GetChild(size_t pos) {
+	auto itr = children_.begin();
+	for (size_t i = 0; itr != children_.end() && i < pos; ++i)
+		++itr;
+
+	return *itr;
+}
+
+
+std::vector<Glyph*> ContainerGlyph::GetChildren() {
+	return children_;
 }
