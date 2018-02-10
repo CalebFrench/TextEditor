@@ -4,7 +4,7 @@
 
 Window::Window(const char* const title, float width, float height) {
 	_impl = new Win32WindowImpl(title);
-	SetRect({ 0, 0, width, height });
+	SetRect({ 100, 100, width, height });
 }
 
 Window::~Window() {
@@ -21,16 +21,21 @@ void Window::Clear() {
 	GetColor(fg);
 	GetClearColor(bg);
 	SetColor(bg);
-	_impl->FillRect(_wnd_rect);
+	GetRect(_wnd_rect);
+	_impl->FillRect({
+		0, 0,
+		_wnd_rect.size.w,
+		_wnd_rect.size.h
+	});
 	SetColor(fg);
 }
 
-void Window::Present() {
-	_impl->Present();
+bool Window::Present() {
+	return _impl->Present();
 }
 
 void Window::GetRect(Rect& rect) {
-	rect = _wnd_rect;
+	_impl->GetRect(rect);
 }
 
 void Window::GetFont(const char* font) {
@@ -67,6 +72,10 @@ void Window::SetColor(const RGBA& rgba) {
 void Window::SetClearColor(const RGBA& rgba) {
 	_bg = rgba;
 	_impl->SetClearColor(_bg);
+}
+
+void Window::OnSize(std::function<void(int, int)> on_size) {
+	_impl->OnSize(on_size);
 }
 
 void Window::DrawLine(const Point& beg, const Point& end, const float width) {

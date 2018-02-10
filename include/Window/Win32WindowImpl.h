@@ -28,14 +28,16 @@ class Win32WindowImpl : public WindowImpl {
 
 public:
 	Win32WindowImpl(const char* const title)
-		: _hwnd(NULL)
+		: _hwnd(NULL), _close(false), _dwStyle(WS_OVERLAPPEDWINDOW), _dwExStyle(NULL),
+		_hdc(NULL), _hdc1(NULL), _fgb(NULL), _bgb(NULL), _hfont(NULL)
 	{
 		WNDCLASSEXA wcex = { 0 };
 		wcex.cbSize = sizeof(wcex);
 		wcex.hInstance = GetModuleHandleA(NULL);
 		wcex.lpfnWndProc = WndProc;
 		wcex.lpszClassName = "Win32WindowImpl";
-
+		wcex.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;
+		
 		if (GetClassInfoExA(wcex.hInstance, wcex.lpszClassName, &wcex) == FALSE) {
 			if (RegisterClassExA(&wcex) == TRUE) {
 				throw std::runtime_error("unable to register window class");
@@ -52,22 +54,44 @@ public:
 
 	virtual bool Process() {
 		MSG msg = { 0 };
-		while (PeekMessageA(&msg, _hwnd, NULL, NULL, PM_REMOVE)) {
+		if (PeekMessageA(&msg, _hwnd, NULL, NULL, PM_REMOVE)) {
 			TranslateMessage(&msg);
 			DispatchMessageA(&msg);
 		}
 		return !_close;
 	}
 
-	virtual void Present() {
+	virtual bool Present() {
+		BOOL b = BitBlt(_hdc1, 0, 0, _w, _h, _hdc, 0, 0, SRCCOPY);
+		return b;
+	}
 
+	virtual void GetRect(Rect& rect) {
+		RECT rc = { 0 };
+		GetClientRect(_hwnd, &rc);
+
+		_w = rc.right - rc.left;
+		_h = rc.bottom - rc.top;
+
+		rect.pos.x = rc.left;
+		rect.pos.y = rc.top;
+		rect.size.w = _w;
+		rect.size.h = _h;
 	}
 
 	virtual void SetRect(const Rect& rect) {
 		RECT rc = { 0 };
+		rc.left   = (int)rect.pos.x;
+		rc.top    = (int)rect.pos.y;
+		rc.right  = (int)(rect.pos.x + rect.size.w);
+		rc.bottom = (int)(rect.pos.y + rect.size.h);
+
+		AdjustWindowRectEx(&rc, WS_OVERLAPPEDWINDOW, FALSE, NULL);
+		_w = rc.right - rc.left;
+		_h = rc.bottom - rc.top;
+
 		SetWindowPos(_hwnd, NULL,
-			(int)rect.pos.x, (int)rect.pos.y,
-			(int)(rect.pos.x + rect.size.w), (int)(rect.pos.y + rect.size.h),
+			rc.left, rc.top, _w, _h,
 			NULL);
 	}
 
@@ -85,46 +109,44 @@ public:
 	}
 
 	virtual void SetColor(const RGBA& rgba) {
-		_fg = RGB(rgba.r*255, rgba.g*255, rgba.b*255);
+		_fg = RGB(rgba.r * 255, rgba.g * 255, rgba.b * 255);
+		if (_fgb != NULL) DeleteObject(_fgb);
 		_fgb = CreateSolidBrush(_fg);
 	}
 
 	virtual void SetClearColor(const RGBA& rgba) {
 		_bg = RGB(rgba.r*255, rgba.g*255, rgba.b*255);
+		if (_bgb != NULL) DeleteObject(_bgb);
 		_bgb = CreateSolidBrush(_bg);
 	}
 
 	virtual void DrawLine(const Point& beg, const Point& end, const float width) {
 		HPEN hpen = CreatePen(NULL, (int)width, _fg);
-
-		HDC hdc = GetDC(_hwnd);
-		HPEN old = (HPEN)SelectObject(hdc, hpen);
+		HPEN old = (HPEN)SelectObject(_hdc, hpen);
 		
-		MoveToEx(hdc, (int)beg.x, (int)beg.y, NULL);
-		LineTo(hdc, (int)end.x, (int)end.y);
+		MoveToEx(_hdc, (int)beg.x, (int)beg.y, NULL);
+		LineTo(_hdc, (int)end.x, (int)end.y);
 		
-		SelectObject(hdc, old);
-		ReleaseDC(_hwnd, hdc);
+		SelectObject(_hdc, old);
+		DeleteObject(hpen);
 	}
 
 	virtual void DrawRect(const Rect& rect, const float width) {
 		HPEN hpen = CreatePen(NULL, (int)width, _fg);
-		float dw = width * 2;
-		float hw = width / 2;
-		int x1 = int(rect.pos.x + hw), x2 = int(rect.pos.x + rect.size.w - width);
-		int y1 = int(rect.pos.y + hw), y2 = int(rect.pos.y + rect.size.h - width);
-		
-		HDC hdc = GetDC(_hwnd);
-		HPEN old = (HPEN)SelectObject(hdc, hpen);
-		
-		MoveToEx(hdc, x1, y1, NULL);
-		LineTo(hdc, x1, y2);
-		LineTo(hdc, x2, y2);
-		LineTo(hdc, x2, y1);
-		LineTo(hdc, x1, y1);
+		HPEN old = (HPEN)SelectObject(_hdc, hpen);
 
-		SelectObject(hdc, old);
-		ReleaseDC(_hwnd, hdc);
+		float hw = width / 2;
+		int x1 = int(rect.pos.x - hw), x2 = int(rect.pos.x + rect.size.w + hw);
+		int y1 = int(rect.pos.y - hw), y2 = int(rect.pos.y + rect.size.h + hw);
+		
+		MoveToEx(_hdc, x1, y1, NULL);
+		LineTo(_hdc, x1, y2);
+		LineTo(_hdc, x2, y2);
+		LineTo(_hdc, x2, y1);
+		LineTo(_hdc, x1, y1);
+
+		SelectObject(_hdc, old);
+		DeleteObject(hpen);
 	}
 
 	virtual void DrawChar(const BoundingBox& box, const int c) {
@@ -134,14 +156,11 @@ public:
 		rc.right = (LONG)box.r;
 		rc.bottom = (LONG)box.b;
 
-		HDC hdc = GetDC(_hwnd);
-		SetTextColor(hdc, _fg);
-		SetBkColor(hdc, _bg);
-		SelectObject(hdc, _hfont);
+		SetTextColor(_hdc, _fg);
+		SetBkColor(_hdc, _bg);
+		SelectObject(_hdc, _hfont);
 
-		DrawTextA(hdc, (char*)&c, 1, &rc, DT_NOPREFIX);
-
-		ReleaseDC(_hwnd, hdc);
+		DrawTextA(_hdc, (char*)&c, 1, &rc, DT_NOPREFIX);
 	}
 
 	virtual void DrawText(const BoundingBox& box, const char* const text) {
@@ -151,14 +170,11 @@ public:
 		rc.right = (LONG)box.r;
 		rc.bottom = (LONG)box.b;
 
-		HDC hdc = GetDC(_hwnd);
-		SetTextColor(hdc, _fg);
-		SetBkColor(hdc, _bg);
-		SelectObject(hdc, _hfont);
+		SetTextColor(_hdc, _fg);
+		SetBkColor(_hdc, _bg);
+		SelectObject(_hdc, _hfont);
 
-		DrawTextA(hdc, text, strlen(text), &rc, DT_NOPREFIX);
-
-		ReleaseDC(_hwnd, hdc);
+		int i = DrawTextA(_hdc, text, strlen(text), &rc, DT_NOPREFIX);
 	}
 
 	virtual void FillRect(const Rect& rect) {
@@ -168,11 +184,7 @@ public:
 		rc.right = (LONG)(rect.pos.x + rect.size.w);
 		rc.bottom = (LONG)(rect.pos.y + rect.size.h);
 
-		HDC hdc = GetDC(_hwnd);
-
-		::FillRect(hdc, &rc, _fgb);
-
-		ReleaseDC(_hwnd, hdc);
+		::FillRect(_hdc, &rc, _fgb);
 	}
 
 	virtual Size CharBounds(int c) {
@@ -182,24 +194,20 @@ public:
 		if (nl)
 			c = ' ';
 
-		HDC hdc = GetDC(_hwnd);
 		RECT rc = { 0 };
-		SelectObject(hdc, _hfont);
-		DrawTextA(hdc, (char*)&c, 1, &rc, DT_CALCRECT);
-		ReleaseDC(_hwnd, hdc);
+		SelectObject(_hdc, _hfont);
+		DrawTextA(_hdc, (char*)&c, 1, &rc, DT_CALCRECT);
 
 		int height = rc.bottom - rc.top;
 		int width = rc.right - rc.left;
-		width = tab ? width * 8 : width;
+		width = tab ? width * 4 : width;
 		width = nl ? 0 : width;
 		return { (float)width, (float)height };
 	}
 
 	virtual Size TextBounds(const char* const text) {
-		HDC hdc = GetDC(_hwnd);
 		RECT rc = { 0 };
-		DrawTextA(hdc, text, strlen(text), &rc, DT_CALCRECT);
-		ReleaseDC(_hwnd, hdc);
+		DrawTextA(_hdc, text, strlen(text), &rc, DT_CALCRECT);
 
 		return {
 			(float)(rc.right - rc.left),
@@ -209,11 +217,21 @@ public:
 
 protected:
 	virtual void Destroy() {
+		if (_hdc) {
+			DeleteDC(_hdc);
+			_hdc = NULL;
+		}
+
 		if (_hwnd) {
-			_close = true;
+			if (_hdc1) {
+				ReleaseDC(_hwnd, _hdc1);
+				_hdc1 = NULL;
+			}
 			DeleteObject(_hfont);
 			DestroyWindow(_hwnd);
 			_hwnd = NULL;
+
+			_close = true;
 		}
 	}
 
@@ -221,14 +239,26 @@ protected:
 		Destroy();
 		_close = false;
 		_hwnd = CreateWindowExA(
-			NULL, "Win32WindowImpl",
-			title, WS_OVERLAPPEDWINDOW,
+			_dwExStyle, "Win32WindowImpl",
+			title, _dwStyle,
 			CW_USEDEFAULT, CW_USEDEFAULT,
 			CW_USEDEFAULT, CW_USEDEFAULT,
 			NULL, NULL, GetModuleHandle(NULL), this);
 
 		if (!_hwnd) {
 			throw std::runtime_error("unable to create window");
+		}
+
+		_hdc1 = GetDC(_hwnd);
+		if (!_hdc1) {
+			Destroy();
+			throw std::runtime_error("unable to get window device context");
+		}
+
+		_hdc = CreateCompatibleDC(_hdc1);
+		if (!_hdc) {
+			Destroy();
+			throw std::runtime_error("unable to create memory device context");
 		}
 
 		UpdateWindow(_hwnd);
@@ -247,6 +277,11 @@ protected:
 			case WM_ERASEBKGND:
 				result = 1;
 				break;
+			case WM_SIZE:
+					_w = LOWORD(lparam);
+					_h = HIWORD(lparam);
+					on_size_(_w, _h);
+				break;
 			default:
 				result = DefWindowProcA(_hwnd, msg, wparam, lparam);
 				break;
@@ -257,7 +292,11 @@ protected:
 
 	bool _close;
 	HWND _hwnd;
+	HDC _hdc, _hdc1;
 	HFONT _hfont;
 	COLORREF _fg, _bg;
 	HBRUSH _fgb, _bgb;
+	DWORD _dwStyle;
+	DWORD _dwExStyle;
+	int _w, _h;
 };
