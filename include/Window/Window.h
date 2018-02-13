@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 
 
 struct RGBA { float r, g, b, a;  };
@@ -14,15 +15,21 @@ typedef Rect2f Rect;
 
 class WindowImpl {
 public:
+	WindowImpl() : on_size_([](int, int) {}) {}
 	virtual ~WindowImpl() {}
 
 	virtual bool Process() = 0;
-	virtual void Present() = 0;
+	virtual bool Present() = 0;
 
+	virtual void GetRect(Rect& rect) = 0;
 	virtual void SetRect(const Rect& rect) = 0;
 	virtual void SetFont(const char* const font) = 0;
 	virtual void SetColor(const RGBA& rgba) = 0;
 	virtual void SetClearColor(const RGBA& rgba) = 0;
+
+	virtual void OnSize(std::function<void(int, int)> on_size) {
+		on_size_ = on_size;
+	}
 
 	virtual void DrawLine(const Point& beg, const Point& end, const float width) = 0;
 	virtual void DrawRect(const Rect& rect, const float width) = 0;
@@ -32,6 +39,9 @@ public:
 
 	virtual Size CharBounds(const int c) = 0;
 	virtual Size TextBounds(const char* const text) = 0;
+
+protected:
+	std::function<void(int, int)> on_size_;
 };
 
 class Window {
@@ -41,7 +51,7 @@ public:
 
 	bool Process();
 	void Clear();
-	void Present();
+	bool Present();
 
 	void GetRect(Rect& rect);
 	void GetFont(const char* font);
@@ -50,7 +60,9 @@ public:
 	void SetRect(const Rect& rect);
 	void SetFont(const char* const font);
 	void SetColor(const RGBA& rgba);
-	void SetClearColor(const RGBA& rgba) ;
+	void SetClearColor(const RGBA& rgba);
+
+	virtual void OnSize(std::function<void(int, int)> on_size);
 
 	void DrawLine(const Point& beg, const Point& end, const float width);
 	void DrawRect(const Rect& rect, const float width);
