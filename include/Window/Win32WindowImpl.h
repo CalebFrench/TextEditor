@@ -29,7 +29,7 @@ class Win32WindowImpl : public WindowImpl {
 public:
 	Win32WindowImpl(const char* const title)
 		: _hwnd(NULL), _close(false), _dwStyle(WS_OVERLAPPEDWINDOW), _dwExStyle(NULL),
-		_hdc(NULL), _hdc1(NULL), _fgb(NULL), _bgb(NULL), _hfont(NULL)
+		_hdc(NULL), _hdc1(NULL), _fgb(NULL), _bgb(NULL), _hfont(NULL), _bits(nullptr)
 	{
 		WNDCLASSEXA wcex = { 0 };
 		wcex.cbSize = sizeof(wcex);
@@ -37,6 +37,7 @@ public:
 		wcex.lpfnWndProc = WndProc;
 		wcex.lpszClassName = "Win32WindowImpl";
 		wcex.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;
+		wcex.hbrBackground = (HBRUSH)COLOR_BACKGROUND + 1;
 		
 		if (GetClassInfoExA(wcex.hInstance, wcex.lpszClassName, &wcex) == FALSE) {
 			if (RegisterClassExA(&wcex) == TRUE) {
@@ -70,13 +71,10 @@ public:
 		RECT rc = { 0 };
 		GetClientRect(_hwnd, &rc);
 
-		_w = rc.right - rc.left;
-		_h = rc.bottom - rc.top;
-
-		rect.pos.x = rc.left;
-		rect.pos.y = rc.top;
-		rect.size.w = _w;
-		rect.size.h = _h;
+		rect.pos.x = (float)rc.left;
+		rect.pos.y = (float)rc.top;
+		rect.size.w = (float)(rc.right - rc.left);
+		rect.size.h = (float)(rc.bottom - rc.top);
 	}
 
 	virtual void SetRect(const Rect& rect) {
@@ -87,12 +85,14 @@ public:
 		rc.bottom = (int)(rect.pos.y + rect.size.h);
 
 		AdjustWindowRectEx(&rc, WS_OVERLAPPEDWINDOW, FALSE, NULL);
-		_w = rc.right - rc.left;
-		_h = rc.bottom - rc.top;
 
 		SetWindowPos(_hwnd, NULL,
-			rc.left, rc.top, _w, _h,
+			rc.left, rc.top,
+			rc.right - rc.left,
+			rc.bottom - rc.top,
 			NULL);
+
+		OnResize((int)rect.size.w, (int)rect.size.h);
 	}
 
 	virtual void SetFont(const char* const font) {
@@ -217,6 +217,12 @@ public:
 
 protected:
 	virtual void Destroy() {
+		if (_hbmp) {
+			DeleteObject(_hbmp);
+			_hbmp = NULL;
+			_bits = nullptr;
+		}
+
 		if (_hdc) {
 			DeleteDC(_hdc);
 			_hdc = NULL;
@@ -277,11 +283,12 @@ protected:
 			case WM_ERASEBKGND:
 				result = 1;
 				break;
-			case WM_SIZE:
-					_w = LOWORD(lparam);
-					_h = HIWORD(lparam);
-					on_size_(_w, _h);
-				break;
+			case WM_SIZE: {
+				RECT rect;
+				GetClientRect(_hwnd, &rect);
+				OnResize(rect.right - rect.left,
+					rect.bottom - rect.top);
+			} break;
 			default:
 				result = DefWindowProcA(_hwnd, msg, wparam, lparam);
 				break;
@@ -290,13 +297,47 @@ protected:
 		return result;
 	}
 
+	void OnResize(int width, int height) {
+		_w = width;
+		_h = height;
+
+		if (_hbmp) {
+			DeleteObject(_hbmp);
+			_hbmp = NULL;
+			_bits = nullptr;
+		}
+
+		BITMAPINFO bmp_info = { 0 };
+		bmp_info.bmiHeader.biSize = sizeof(BITMAPINFO);
+		bmp_info.bmiHeader.biWidth = _w;
+		bmp_info.bmiHeader.biHeight = _h;
+		bmp_info.bmiHeader.biBitCount = 24;
+		bmp_info.bmiHeader.biPlanes = 1;
+		bmp_info.bmiHeader.biCompression = BI_RGB;
+
+		_hbmp = CreateDIBSection(_hdc,
+			&bmp_info, DIB_RGB_COLORS,
+			&_bits, NULL, NULL);
+
+		if (!_hbmp) {
+			Destroy();
+			throw std::runtime_error("unable to create bitmap");
+		}
+
+		on_size_(_w, _h);
+		SelectObject(_hdc, _hbmp);
+		UpdateWindow(_hwnd);
+	}
+
 	bool _close;
 	HWND _hwnd;
 	HDC _hdc, _hdc1;
+	HBITMAP _hbmp;
 	HFONT _hfont;
 	COLORREF _fg, _bg;
 	HBRUSH _fgb, _bgb;
 	DWORD _dwStyle;
 	DWORD _dwExStyle;
 	int _w, _h;
+	void* _bits;
 };
